@@ -3,46 +3,44 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 
-async function verifyFarmerOwnership(productId: string) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return null;
-
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return null;
-
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product || product.farmerId !== user.id) return null;
-
-  return product;
-}
-
-// 1. GET: Fetch product data to pre-fill the edit form
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// GET: Fetch all products (for the marketplace listing)
+export async function GET(req: Request) {
   try {
-    const resolvedParams = await params;
-    const product = await prisma.product.findUnique({ where: { id: resolvedParams.id } });
-    if (!product) return new NextResponse('Not found', { status: 404 });
-    return NextResponse.json(product);
+    const { searchParams } = new URL(req.url);
+    const category = searchParams.get('category');
+    const q = searchParams.get('q');
+
+    const products = await prisma.product.findMany({
+      where: {
+        ...(category ? { category } : {}),
+        ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json(products);
   } catch (error) {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
 
-// 2. PUT: Save the edited data
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// POST: Create a new product listing
+export async function POST(req: Request) {
   try {
-    const resolvedParams = await params;
-    const existingProduct = await verifyFarmerOwnership(resolvedParams.id);
-    
-    if (!existingProduct) {
-      return new NextResponse('Unauthorized or Product Not Found', { status: 403 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ message: 'Not logged in' }, { status: 401 });
+    }
+
+    const user = session.user as any;
+    if (user.role !== 'FARMER') {
+      return NextResponse.json({ message: 'Only farmers can list products' }, { status: 403 });
     }
 
     const body = await req.json();
-    const { name, price, unit, category, listingType, description, stock, imageUrl } = body;
+    const { name, price, unit, category, listingType, description, imageUrl } = body;
 
-    const updatedProduct = await prisma.product.update({
-      where: { id: resolvedParams.id },
+    const newProduct = await prisma.product.create({
       data: {
         name,
         price: parseFloat(price),
@@ -50,32 +48,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         category,
         listingType,
         description,
-        stock: parseInt(stock),
-        imageUrl,
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea',
+        farmerId: user.id,
       },
     });
 
-    return NextResponse.json(updatedProduct);
+    return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
-    console.error("Update error:", error);
-    return new NextResponse('Internal Server Error', { status: 500 });
-  }
-}
-
-// 3. DELETE: Remove the product entirely
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const resolvedParams = await params;
-    const existingProduct = await verifyFarmerOwnership(resolvedParams.id);
-    
-    if (!existingProduct) {
-      return new NextResponse('Unauthorized or Product Not Found', { status: 403 });
-    }
-
-    await prisma.product.delete({ where: { id: resolvedParams.id } });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Delete error:", error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Product creation error:', error);
+    return NextResponse.json({ message: 'Failed to create product' }, { status: 500 });
   }
 }
