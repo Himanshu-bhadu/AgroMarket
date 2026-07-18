@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Calculate the exact total securely on the backend
-    const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    const subtotal = cartItems.reduce((sum: number, item) => sum + (item.product.price * item.quantity), 0);
     const tax = subtotal * 0.05;
     const totalAmount = subtotal + tax;
 
