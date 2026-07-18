@@ -1,0 +1,195 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Ensure you have your database URL set in your .env file
+datasource db {
+  provider = "postgresql"
+}
+
+// Custom Enums for AgriMarket
+enum Role {
+  BUYER
+  FARMER
+  ADMIN
+}
+
+// NextAuth Required Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // Added for credentials login
+  role          Role      @default(BUYER) // Our custom role
+  phone         String?
+  reviews       Review[]
+  accounts      Account[]
+  sessions      Session[]
+  products      Product[] 
+  cartItems     CartItem[]
+  isPro           Boolean   @default(false)
+  aiQuestionsUsed Int       @default(0)
+  razorpaySubId   String?   // To track their active monthly subscription
+  orders        Order[]   // <-- NEW: Link User to their Orders
+  chatMessages  ChatMessage[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Our Custom AgriMarket Models
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  price       Float
+  unit        String   
+  category    String   
+  listingType String   @default("SELL") 
+  description String?  @db.Text
+  imageUrl    String
+  cartItems   CartItem[]
+  stock       Int      @default(1)
+  // Relationship: Who sells this?
+  farmerId    String
+  farmer      User     @relation(fields: [farmerId], references: [id])
+  
+  reviews     Review[]
+  orderItems  OrderItem[] 
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+
+  // Relationships
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A superpower: This prevents duplicate rows.
+  @@unique([userId, productId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // A number from 1 to 5
+  comment   String?  @db.Text
+  
+  // Who wrote the review?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Which product is being reviewed?
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  // This ensures a user can only have one active token at a time
+  @@unique([email, token])
+}
+
+// ==========================================
+// NEW: ORDER MANAGEMENT MODELS
+// ==========================================
+
+model Order {
+  id                String      @id @default(cuid())
+  totalAmount       Float
+  status            String      @default("COMPLETED") // e.g., PENDING, COMPLETED
+  razorpayPaymentId String?     // To track the specific transaction
+
+  // Who bought it?
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // What did they buy?
+  items             OrderItem[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  price     Float   // We save the price *at the time of purchase*
+  deliveryStatus String   @default("PENDING")
+  // Relationships
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // This will store either "user" or "assistant"
+  content   String   // The actual message text
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
