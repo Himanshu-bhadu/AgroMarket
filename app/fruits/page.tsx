@@ -49,7 +49,7 @@ export default async function FruitsPage() {
         ) : (
           /* Products Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
+            {products.map((product: any) => (
               <div 
                 key={product.id}
                 className="group relative flex flex-col bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300"

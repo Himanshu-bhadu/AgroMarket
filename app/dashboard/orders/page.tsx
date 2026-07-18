@@ -79,7 +79,7 @@ export default async function FarmerOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                  {soldItems.map((item) => (
+                  {soldItems.map((item:any) => (
                     <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                       
                       {/* Date */}
