@@ -24,8 +24,13 @@ export async function POST(req: Request) {
       return new NextResponse('Cart is empty', { status: 400 });
     }
 
+    type CartItemWithProduct = {
+      product: { price: number };
+      quantity: number;
+    };
+
     // 2. Calculate the exact total securely on the backend
-    const subtotal = cartItems.reduce((sum: number, item) => sum + (item.product.price * item.quantity), 0);
+    const subtotal = cartItems.reduce((sum: number, item: CartItemWithProduct) => sum + (item.product.price * item.quantity), 0);
     const tax = subtotal * 0.05;
     const totalAmount = subtotal + tax;
 
@@ -35,7 +40,7 @@ export async function POST(req: Request) {
         userId: userId,
         totalAmount: totalAmount,
         items: {
-          create: cartItems.map(item => ({
+          create: cartItems.map((item: CartItemWithProduct & { productId: string })=> ({
             productId: item.productId,
             quantity: item.quantity,
             price: item.product.price,
