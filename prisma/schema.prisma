@@ -180,7 +180,7 @@ model ChatMessage {
   id        String   @id @default(cuid())
   userId    String
   role      String   // This will store either "user" or "assistant"
-  content   String   // The actual message text
+  content   String  
   createdAt DateTime @default(now())
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
