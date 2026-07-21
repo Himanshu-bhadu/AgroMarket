@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const resetUrl = `http://localhost:3000/reset-password?token=${token}`;
+    const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
 
     // 2. Configure the Nodemailer Transporter
     console.log("Checking Env Variables:", process.env.EMAIL_USER, process.env.EMAIL_PASS ? "Password exists" : "Password missing!");
