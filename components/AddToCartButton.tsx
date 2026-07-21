@@ -29,7 +29,6 @@
         setIsAdding(false);
     };
     
-
     return (
         <button
         onClick={handleAddClick}
